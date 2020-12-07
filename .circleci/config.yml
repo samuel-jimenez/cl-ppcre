@@ -1,0 +1,59 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
+version: 2.1
+
+# Define the jobs we want to run for this project
+jobs:
+  build:
+    machine:
+      image: ubuntu-2004:202010-01 # recommended linux image
+    steps:
+      - checkout
+      - run:
+          name: install roswell
+          command: curl -L https://raw.githubusercontent.com/roswell/roswell/release/scripts/install-for-ci.sh | sh
+      - run:
+          name: set path
+          command: echo "export PATH=$LISP_IMPLS_BIN:$PATH" >> $BASH_ENV
+
+      - run:
+          name: build-ros
+          command: ros run -- --version
+
+      - run:
+          name: build-clisp
+          command: ros install ccl-bin
+
+      - run:
+          name: install testing framework
+          command: |
+            ros install cl-coveralls
+      - run:
+          name: init test
+          command: |
+            ros init test
+            cat >> test.ros \<< EOF
+            (require :cl-coveralls)
+            (defun main (&rest argv)
+              (declare (ignore argv))
+              (coveralls:with-coveralls (:exclude (list "t"))
+                (or (asdf:test-system :cl-ppcre)
+                  (uiop:quit -1))))
+            EOF
+
+      - run:
+          name: run-sbcl
+          command: |
+            ros config set default.lisp sbcl-bin
+            COVERALLS=true ./test.ros
+
+      - run:
+          name: run-clisp
+          command: |
+            ros config set default.lisp ccl-bin
+            ./test.ros
+workflows:
+  build_and_test:
+    jobs:
+      - build:
+          context: Coveralls #Organization Settings>Contexts>Environment Variables>COVERALLS_REPO_TOKEN
+
