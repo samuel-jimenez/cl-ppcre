@@ -1,5 +1,8 @@
 # CL-PPCRE - Portable Perl-compatible regular expressions for Common Lisp
 
+[![Build Status](https://circleci.com/gh/samuel-jimenez/cl-ppcre.svg?style=svg)](https://circleci.com/gh/samuel-jimenez/cl-ppcre)
+[![Coverage Status](https://coveralls.io/repos/github/samuel-jimenez/cl-ppcre/badge.svg?branch=master)](https://coveralls.io/github/samuel-jimenez/cl-ppcre?branch=master)
+
 ## Abstract
 
 CL-PPCRE is a portable regular expression library for Common Lisp
