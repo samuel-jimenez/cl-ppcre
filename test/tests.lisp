@@ -145,7 +145,8 @@ CL-PPCRE-UNICODE."
   (let ((successp t))
     (macrolet ((run-test-suite (&body body)
                  `(unless (progn ,@body)
-                    (setq successp nil))))
+                    (setq successp nil)
+                    (error "Test failed"))))
       ;; run the automatically generated Perl tests
       (run-test-suite (perl-test :verbose verbose))
       (run-test-suite (test-optimized-test-functions :verbose verbose))
