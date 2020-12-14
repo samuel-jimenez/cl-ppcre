@@ -39,8 +39,7 @@ jobs:
             (defun main (&rest argv)
               (declare (ignore argv))
               (coveralls:with-coveralls (:exclude (list "t"))
-                (or (asdf:test-system :cl-ppcre)
-                  (uiop:quit -1))))
+                (asdf:test-system :cl-ppcre)))
             EOF
 
       - run:
@@ -88,5 +87,7 @@ workflows:
   build_and_test:
     jobs:
       - build-linux
-      - build-win
+      - build-win:
+          requires:
+           - build-linux
 
