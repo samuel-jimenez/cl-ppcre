@@ -291,30 +291,50 @@ internal purposes."))
                 ,target-string ,@rest))
         (t form)))
 
-(defun scan-to-strings (regex target-string &key (start 0)
-                                                 (end (length target-string))
-                                                 sharedp)
-  "Like SCAN but returns substrings of TARGET-STRING instead of
-positions, i.e. this function returns two values on success: the whole
-match as a string plus an array of substrings (or NILs) corresponding
-to the matched registers.  If SHAREDP is true, the substrings may
-share structure with TARGET-STRING."
+(defun %scan-strings% (regex target-string
+                                start end
+                                sharedp
+                                map-type
+                                return-match?)
+  "Generalization of old scan-to-strings.
+  Returns substrings of TARGET-STRING collected using map-type."
   (declare #.*standard-optimize-settings*)
+  (declare (simple-string target-string))
   (multiple-value-bind (match-start match-end reg-starts reg-ends)
       (scan regex target-string :start start :end end)
+  (declare ((or null simple-vector) reg-starts reg-ends))
     (unless match-start
-      (return-from scan-to-strings nil))
-    (let ((substr-fn (if sharedp #'nsubseq #'subseq)))
-      (values (funcall substr-fn
-                       target-string match-start match-end)
-              (map 'vector
+      (return-from %scan-strings% nil))
+    (let* ((substr-fn (if sharedp #'nsubseq #'subseq))
+          (substr-map (map map-type
                    (lambda (reg-start reg-end)
                      (if reg-start
                        (funcall substr-fn
                                 target-string reg-start reg-end)
                        nil))
                    reg-starts
-                   reg-ends)))))
+                   reg-ends)))
+      (if return-match?
+        (values (funcall substr-fn
+                       target-string match-start match-end)
+                substr-map)
+        substr-map))))
+
+
+
+(defun scan-to-strings (regex target-string &key (start 0)
+                                                 (end (length target-string))
+                                                 sharedp)
+  "Like SCAN but returns substrings of TARGET-STRING instead of
+  positions, i.e. this function returns two values on success: the whole
+  match as a string plus an array of substrings (or NILs) corresponding
+  to the matched registers.  If SHAREDP is true, the substrings may
+  share structure with TARGET-STRING."
+  (%scan-strings% regex target-string
+                                  start end
+                                  sharedp
+                                  'vector
+                                  T))
 
 #-:cormanlisp
 (define-compiler-macro scan-to-strings
@@ -325,31 +345,30 @@ share structure with TARGET-STRING."
                            ,target-string ,@rest))
         (t form)))
 
+
 (defun scan-to-register-strings (regex target-string &key (start 0)
                                 (end (length target-string))
                                 sharedp)
   "Like SCAN but returns substrings of TARGET-STRING instead of
-positions, i.e. this function returns one value on success:
-a list of substrings (or NILs) corresponding
-to the matched registers.  If SHAREDP is true, the substrings may
-share structure with TARGET-STRING."
-  (declare #.*standard-optimize-settings*)
-  (declare (simple-string target-string))
-  (multiple-value-bind (match-start match-end reg-starts reg-ends)
-      (scan regex target-string :start start :end end)
-  (declare (ignore match-end))
-  (declare ((or null simple-vector) reg-starts reg-ends))
-    (unless match-start
-      (return-from scan-to-register-strings nil))
-    (let ((substr-fn (if sharedp #'nsubseq #'subseq)))
-        (map 'list
-          (lambda (reg-start reg-end)
-            (if reg-start
-              (funcall substr-fn
-                  target-string reg-start reg-end)
-                nil))
-          reg-starts
-          reg-ends))))
+  positions, i.e. this function returns one value on success:
+  a list of substrings (or NILs) corresponding
+  to the matched registers.  If SHAREDP is true, the substrings may
+  share structure with TARGET-STRING."
+  (%scan-strings% regex target-string
+                                  start end
+                                  sharedp
+                                  'list
+                                  nil))
+
+#-:cormanlisp
+(define-compiler-macro scan-to-register-strings
+    (&whole form regex target-string &rest rest)
+  "Make sure that constant forms are compiled into scanners at compile time."
+  (cond ((constantp regex)
+         `(scan-to-register-strings (load-time-value (create-scanner ,regex))
+                           ,target-string ,@rest))
+        (t form)))
+
 
 (defmacro register-groups-bind (var-list (regex target-string
                                                 &key start end sharedp)
